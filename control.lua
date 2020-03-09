@@ -2,8 +2,17 @@ disabled = "disbled"
 looking_for_train = "looking_for_train"
 following_train = "following_train"
 
-function FollowOnTick(event) 
-	game.get_player(1).teleport(global.followed_train.locomotives.front_movers[1].position)
+function FollowOnTick(event)
+	local ticks_elapsed = event.tick - global.train_follow_start_tick
+	local locomotive_position = global.followed_train.locomotives.front_movers[1].position
+	local target_position = locomotive_position
+	if ticks_elapsed < global.transition_time then
+		local ticks_left = global.transition_time - ticks_elapsed
+		local player_position = game.get_player(1).position
+		target_position.x = player_position.x + (locomotive_position.x - player_position.x)/ticks_left
+		target_position.y = player_position.y + (locomotive_position.y - player_position.y)/ticks_left
+	end
+	game.get_player(1).teleport(target_position)
 	if event.tick % 120 == 0 then
 		if global.followed_train.schedule.current ~= 1 then
 			global.train_left_the_depot = true
@@ -20,6 +29,7 @@ function OnDispatcherUpdated(event)
 		global.screensaver_state = following_train
 		global.followed_train = event.train
 		global.train_left_the_depot = false
+		global.train_follow_start_tick = game.tick
 		--game.print(table.tostring(global.followed_train.schedule))
 		script.on_event({defines.events.on_tick}, FollowOnTick)
 		if global.character == nil then
@@ -33,6 +43,7 @@ end
 function toggle_screensaver(event)
 	if global.screensaver_state == disabled then
 		game.print("Turning on screensaver. Press CTRL+S to disable.")
+		global.transition_time = 600
 		script.on_event({defines.events.on_train_schedule_changed}, OnDispatcherUpdated)
 		global.screensaver_state = looking_for_train
 	else
@@ -47,5 +58,4 @@ function toggle_screensaver(event)
 	end
 end
 
-global.screensaver_state = disabled
 script.on_event("pressed-screensaver-key", toggle_screensaver)
