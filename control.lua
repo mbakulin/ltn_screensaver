@@ -35,7 +35,15 @@ function OnTick(event)
 					global.per_player[idx].screensaver_state = looking_for_train
 				end
 			end
-			game.get_player(idx).teleport(per_player.followed_train.locomotives.front_movers[1].position)
+			--game.get_player(idx).teleport(per_player.followed_train.locomotives.front_movers[1].position)
+			local orientation = global.per_player[idx].followed_train.locomotives.front_movers[1].orientation
+			local angle = -orientation * math.pi * 2 + math.pi / 2
+			local dx = math.cos(angle) * global.per_player[idx].followed_train.locomotives.front_movers[1].speed
+			local dy = math.sin(angle) * global.per_player[idx].followed_train.locomotives.front_movers[1].speed
+			local target_position = global.per_player[idx].followed_train.locomotives.front_movers[1].position
+			target_position.x = target_position.x + dx
+			target_position.y = target_position.y - dy
+			game.get_player(idx).teleport(target_position)
 		end
 	end
 end
