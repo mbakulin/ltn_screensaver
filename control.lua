@@ -88,7 +88,6 @@ function OnDispatcherUpdated(event)
 				global.per_player[idx].delivery_history[per_player.delivery_history_pointer] = item
 				global.per_player[idx].delivery_history_pointer = (per_player.delivery_history_pointer + 1) % per_player.delivery_history_size 
 				global.per_player[idx].screensaver_state = following_train
-				global.per_player[idx].previous_train = per_player.followed_train
 				global.per_player[idx].followed_train = event.train
 				global.per_player[idx].train_left_the_depot = false
 				global.per_player[idx].train_follow_start_tick = game.tick
@@ -98,8 +97,7 @@ function OnDispatcherUpdated(event)
 				local last_position = game.get_player(idx).position
 				local waypoints = 
 					{{position = last_position, transition_time = 0, time_to_wait = 0},
-					{target = event.train.locomotives.front_movers[1], transition_time = per_player.transition_time, time_to_wait = 1}} 
-					--{target = event.train.locomotives.front_movers[1], transition_time = 0, time_to_wait = 1}}
+					{target = event.train.locomotives.front_movers[1], transition_time = per_player.transition_time, time_to_wait = 1}}
 				local alt_mode = game.get_player(idx).game_view_settings.show_entity_info 
 				game.get_player(idx).set_controller{type=defines.controllers.cutscene, waypoints = waypoints, final_transition_time = 10000}
 				game.get_player(idx).game_view_settings.show_entity_info = alt_mode
@@ -125,12 +123,21 @@ function toggle_screensaver(event)
 		global.per_player[idx].transition_time = game.players[idx].mod_settings["ltn-scr-transition-time"].value
 		global.per_player[idx].screensaver_state = looking_for_train
 		global.per_player[idx].followed_train = nil
-		global.per_player[idx].game_view_settings = game.get_player(idx).game_view_settings
+		local game_view_settings =
+				{show_controller_gui = game.get_player(idx).game_view_settings.show_controller_gui,
+				show_minimap = game.get_player(idx).game_view_settings.show_minimap,
+				show_research_info = game.get_player(idx).game_view_settings.show_research_info,
+				show_entity_info = game.get_player(idx).game_view_settings.show_entity_info,
+				show_alert_gui = game.get_player(idx).game_view_settings.show_alert_gui,
+				update_entity_selection = game.get_player(idx).game_view_settings.update_entity_selection,
+				show_rail_block_visualisation = game.get_player(idx).game_view_settings.show_rail_block_visualisation,
+				show_side_menu  = game.get_player(idx).game_view_settings.show_side_menu,
+				show_map_view_options = game.get_player(idx).game_view_settings.show_map_view_options,
+				show_quickbar = game.get_player(idx).game_view_settings.show_quickbar,
+				show_shortcut_bar = game.get_player(idx).game_view_settings.show_shortcut_bar}
+		global.per_player[idx].game_view_settings = game_view_settings
 		script.on_event({defines.events.on_train_schedule_changed}, OnDispatcherUpdated)
 		script.on_event({defines.events.on_cutscene_waypoint_reached}, OnWaypointReached)
-
-		game.print(global.per_player[idx].delivery_history_size)
-		game.print(global.per_player[idx].transition_time)
 	else
 		game.get_player(idx).print("Turning off screensaver.")
 		global.per_player[idx].screensaver_state = disabled
