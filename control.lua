@@ -1,6 +1,7 @@
 disabled = "disbled"
 looking_for_train = "looking_for_train"
 following_train = "following_train"
+transition = "transition"
 
 function has_value (tab, val)
     for index, value in pairs(tab) do
@@ -26,7 +27,7 @@ end
 
 function OnTick(event)
 	for idx, per_player in ipairs(global.per_player) do
-		if per_player.followed_train ~= nil then
+		if per_player.followed_train ~= nil and per_player.screensaver_state ~= transition then
 			if event.tick % 120 == 0 then
 				if per_player.followed_train.schedule.current ~= 1 then
 					global.per_player[idx].train_left_the_depot = true
@@ -43,7 +44,8 @@ function OnWaypointReached(event)
 	local idx = event.player_index
 	local per_player = global.per_player[idx]
 	if per_player.followed_train ~= nil then
-		if game.tick - per_player.train_follow_start_tick > 10 then
+		if game.tick - per_player.train_follow_start_tick >= per_player.transition_time then
+			global.per_player[idx].screensaver_state = following_train
 			script.on_event({defines.events.on_tick}, OnTick)
 			local alt_mode = game.get_player(idx).game_view_settings.show_entity_info 
 			game.get_player(idx).set_controller{type=defines.controllers.ghost}
@@ -99,6 +101,7 @@ function OnDispatcherUpdated(event)
 					{{position = last_position, transition_time = 0, time_to_wait = 0},
 					{target = event.train.locomotives.front_movers[1], transition_time = per_player.transition_time, time_to_wait = 1}}
 				local alt_mode = game.get_player(idx).game_view_settings.show_entity_info 
+				global.per_player[idx].screensaver_state = transition
 				game.get_player(idx).set_controller{type=defines.controllers.cutscene, waypoints = waypoints, final_transition_time = 10000}
 				game.get_player(idx).game_view_settings.show_entity_info = alt_mode
 			end
