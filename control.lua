@@ -3,7 +3,7 @@ looking_for_train = "looking_for_train"
 following_train = "following_train"
 
 function has_value (tab, val)
-    for index, value in ipairs(tab) do
+    for index, value in pairs(tab) do
         if value == val then
             return true
         end
