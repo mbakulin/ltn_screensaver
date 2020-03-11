@@ -126,6 +126,11 @@ function toggle_screensaver(event)
 		global.per_player[idx] = {}
 	end
 
+	if game.get_player(idx).controller_type == defines.controllers.editor then
+		game.get_player(idx).print("Can't be used with editor controller.")
+		return
+	end
+
 	if global.per_player[idx].screensaver_state == nil or global.per_player[idx].screensaver_state == disabled then
 		game.get_player(idx).print("Turning on screensaver. Press CTRL+S to disable.")
 		global.per_player[idx].delivery_history = {}
