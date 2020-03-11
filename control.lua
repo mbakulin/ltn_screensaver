@@ -60,7 +60,7 @@ function OnWaypointReached(event)
 				show_quickbar = false,
 				show_shortcut_bar = false}
 			game.get_player(idx).game_view_settings = game_view_settings
-			game.get_player(idx).teleport(per_player.followed_train.locomotives.front_movers[1].position)
+			game.get_player(idx).teleport(global.per_player[idx].followed_train.locomotives.front_movers[1].position)
 		end
 	end
 end
@@ -95,13 +95,11 @@ function OnDispatcherUpdated(event)
 				if per_player.character == nil then
 					global.per_player[idx].character = game.get_player(idx).character
 				end
-				local target_entity = game.get_player(idx).character
-				if global.per_player[idx].previous_train ~= nil then
-					target_entity = global.per_player[idx].previous_train.locomotives.front_movers[1]
-				end
+				local last_position = game.get_player(idx).position
 				local waypoints = 
-					{{target = target_entity, transition_time = 0, time_to_wait = 10},
-					{target = event.train.locomotives.front_movers[1], transition_time = per_player.transition_time, time_to_wait = 120}}
+					{{position = last_position, transition_time = 0, time_to_wait = 0},
+					{target = event.train.locomotives.front_movers[1], transition_time = per_player.transition_time, time_to_wait = 1}} 
+					--{target = event.train.locomotives.front_movers[1], transition_time = 0, time_to_wait = 1}}
 				local alt_mode = game.get_player(idx).game_view_settings.show_entity_info 
 				game.get_player(idx).set_controller{type=defines.controllers.cutscene, waypoints = waypoints, final_transition_time = 10000}
 				game.get_player(idx).game_view_settings.show_entity_info = alt_mode
