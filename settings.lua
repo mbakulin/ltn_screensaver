@@ -18,12 +18,11 @@ data:extend({
         minimum_value = 0
     },
     {
-        type = "double-setting",
-        name = "ltn-scr-transition-zoom-multiplier",
-        localised_name = "Transition zoom multiplier",
-        localised_description = "During the transition to the next train, zoom will gradually change by <value> multiplier. Higher",
+        type = "bool-setting",
+        name = "ltn-scr-reset-history",
+        localised_name = "Reset delivery history",
+        localised_description = "Clear delivery history when screensaver is turned off",
         setting_type = "runtime-per-user",
-        default_value = 1,
-        minimum_value = 0
+        default_value = false
     }
 })

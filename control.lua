@@ -119,6 +119,7 @@ end
 
 
 function toggle_screensaver(event)
+	script.on_event(defines.events.on_runtime_mod_setting_changed, mod_settings_changed)
 	local idx = event.player_index
 	if global.per_player == nil then global.per_player = {} end
 
@@ -133,9 +134,14 @@ function toggle_screensaver(event)
 
 	if global.per_player[idx].screensaver_state == nil or global.per_player[idx].screensaver_state == disabled then
 		game.get_player(idx).print("Turning on screensaver. Press CTRL+S to disable.")
-		global.per_player[idx].delivery_history = {}
 		global.per_player[idx].delivery_history_size = game.players[idx].mod_settings["ltn-scr-delivery-history-size"].value
-		global.per_player[idx].delivery_history_pointer = 0
+		if game.players[idx].mod_settings["ltn-scr-reset-history"].value == true or global.per_player[idx].delivery_history == nil then
+			global.per_player[idx].delivery_history = {}
+			for i=0,global.per_player[idx].delivery_history_size-1 do
+				global.per_player[idx].delivery_history[i] = nil
+			end 
+			global.per_player[idx].delivery_history_pointer = 0
+		end
 		global.per_player[idx].transition_time = game.players[idx].mod_settings["ltn-scr-transition-time"].value
 		global.per_player[idx].screensaver_state = looking_for_train
 		global.per_player[idx].followed_train = nil
@@ -178,6 +184,45 @@ function toggle_screensaver(event)
         	script.on_event({defines.events.on_cutscene_waypoint_reached}, nil)
         	script.on_event({defines.events.on_tick}, nil)
         end
+	end
+end
+
+function mod_settings_changed(event)
+	game.print("Mod settings changed")
+	if event.player_index == nil then
+		return
+	end
+	local idx = event.player_index
+	if event.setting_type ~= "runtime-per-user" then
+		return
+	end
+	--If per player is nil, it means screensaver has never been started yet, and everything will be initialized anyway on first start
+	if global.per_player == nil then return end
+	if event.setting == "ltn-scr-transition-time" then
+		global.per_player[idx].transition_time = game.players[idx].mod_settings["ltn-scr-transition-time"].value
+		return
+	end
+	if event.setting == "ltn-scr-delivery-history-size" then
+		if global.per_player[idx].delivery_history == nil then
+			return
+		end
+		local new_delivery_history_size = game.players[idx].mod_settings["ltn-scr-delivery-history-size"].value
+		local old_delivery_history_size = global.per_player[idx].delivery_history_size
+		local new_delivery_history = {}
+		local old_delivery_history = global.per_player[idx].delivery_history
+		local new_pointer = 0
+		local old_pointer = global.per_player[idx].delivery_history_pointer
+		--Can be done more efficiently, but I'm too lazy to make several checks for sizes and all. Anyway, settings change is a rare thing.
+		for i=0,old_delivery_history_size-1 do
+			new_delivery_history[new_pointer] = old_delivery_history[old_pointer]
+			new_pointer = (new_pointer + 1) % new_delivery_history_size
+			old_pointer = (old_pointer + 1) % old_delivery_history_size
+			game.print(dump(new_delivery_history))
+		end
+		global.per_player[idx].delivery_history = new_delivery_history
+		global.per_player[idx].delivery_history_size = new_delivery_history_size
+		global.per_player[idx].delivery_history_pointer = new_pointer
+		return
 	end
 end
 
