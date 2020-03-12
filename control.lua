@@ -2,6 +2,7 @@ disabled = "disbled"
 looking_for_train = "looking_for_train"
 following_train = "following_train"
 transition = "transition"
+controller_transition_time = 15
 
 function has_value (tab, val)
     for index, value in pairs(tab) do
@@ -35,15 +36,23 @@ function OnTick(event)
 					global.per_player[idx].screensaver_state = looking_for_train
 				end
 			end
-			--game.get_player(idx).teleport(per_player.followed_train.locomotives.front_movers[1].position)
-			local orientation = global.per_player[idx].followed_train.locomotives.front_movers[1].orientation
-			local angle = -orientation * math.pi * 2 + math.pi / 2
-			local dx = math.cos(angle) * global.per_player[idx].followed_train.locomotives.front_movers[1].speed
-			local dy = math.sin(angle) * global.per_player[idx].followed_train.locomotives.front_movers[1].speed
-			local target_position = global.per_player[idx].followed_train.locomotives.front_movers[1].position
-			target_position.x = target_position.x + dx
-			target_position.y = target_position.y - dy
-			game.get_player(idx).teleport(target_position)
+			if event.tick - per_player.cutscene_waypoint_reached_tick > controller_transition_time then
+				game.get_player(idx).teleport(global.per_player[idx].followed_train.locomotives.front_movers[1].position)
+			else
+				--need some gradual transition between cutscene controller and ghost controller
+				--first controller_transition_time ticks teleport position is calculated as train_position+speed_per_tick*magic_coeff
+				--magic_coeff if gradually changing from 1 to 0 during transition time
+				local orientation = global.per_player[idx].followed_train.locomotives.front_movers[1].orientation
+				local angle = -orientation * math.pi * 2 + math.pi / 2
+				local dx = math.cos(angle) * global.per_player[idx].followed_train.locomotives.front_movers[1].speed
+				local dy = math.sin(angle) * global.per_player[idx].followed_train.locomotives.front_movers[1].speed
+				local target_position = global.per_player[idx].followed_train.locomotives.front_movers[1].position
+				local elapsed_transition_time = event.tick - per_player.cutscene_waypoint_reached_tick - 1
+				local magic_coeff = (controller_transition_time - elapsed_transition_time) / controller_transition_time
+				target_position.x = target_position.x + dx*magic_coeff
+				target_position.y = target_position.y - dy*magic_coeff
+				game.get_player(idx).teleport(target_position)
+			end
 		end
 	end
 end
@@ -54,6 +63,7 @@ function OnWaypointReached(event)
 	if per_player.followed_train ~= nil then
 		if game.tick - per_player.train_follow_start_tick >= per_player.transition_time then
 			global.per_player[idx].screensaver_state = following_train
+			global.per_player[idx].cutscene_waypoint_reached_tick = event.tick
 			script.on_event({defines.events.on_tick}, OnTick)
 			local alt_mode = game.get_player(idx).game_view_settings.show_entity_info 
 			game.get_player(idx).set_controller{type=defines.controllers.ghost}
