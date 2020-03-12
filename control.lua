@@ -198,7 +198,6 @@ function toggle_screensaver(event)
 end
 
 function mod_settings_changed(event)
-	game.print("Mod settings changed")
 	if event.player_index == nil then
 		return
 	end
@@ -227,7 +226,6 @@ function mod_settings_changed(event)
 			new_delivery_history[new_pointer] = old_delivery_history[old_pointer]
 			new_pointer = (new_pointer + 1) % new_delivery_history_size
 			old_pointer = (old_pointer + 1) % old_delivery_history_size
-			game.print(dump(new_delivery_history))
 		end
 		global.per_player[idx].delivery_history = new_delivery_history
 		global.per_player[idx].delivery_history_size = new_delivery_history_size
