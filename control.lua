@@ -104,9 +104,11 @@ function OnDispatcherUpdated(event)
 
 	for idx, per_player in ipairs(global.per_player) do
 		if per_player.screensaver_state == looking_for_train then
-			if has_value(per_player.delivery_history, item) == false then
-				global.per_player[idx].delivery_history[per_player.delivery_history_pointer] = item
-				global.per_player[idx].delivery_history_pointer = (per_player.delivery_history_pointer + 1) % per_player.delivery_history_size 
+			if per_player.delivery_history_size == 0 or has_value(per_player.delivery_history, item) == false then
+				if per_player.delivery_history_size ~= 0 then
+					global.per_player[idx].delivery_history[per_player.delivery_history_pointer] = item
+					global.per_player[idx].delivery_history_pointer = (per_player.delivery_history_pointer + 1) % per_player.delivery_history_size 
+				end
 				global.per_player[idx].screensaver_state = following_train
 				global.per_player[idx].followed_train = event.train
 				global.per_player[idx].train_left_the_depot = false
@@ -127,6 +129,29 @@ function OnDispatcherUpdated(event)
 	end
 end
 
+function OnTrainInvalidated(event)
+	for index, per_player in pairs(global.per_player) do
+		if per_player.followed_train ~= nil and has_value(per_player.followed_train.carriages, event.entity) then
+			-- Fake pressing disable screensaver hotkey
+			local fake_event = {}
+			fake_event.player_index = index
+			toggle_screensaver(fake_event)
+		end
+	end
+end
+
+function OnEntityDamaged(event)
+	for index, per_player in pairs(global.per_player) do
+		if per_player.screensaver_state ~= disabled and per_player.character == event.entity then
+			if event.entity.health - event.final_damage_amount <= 0 then
+				-- Fake pressing disable screensaver hotkey
+				local fake_event = {}
+				fake_event.player_index = index
+				toggle_screensaver(fake_event)
+			end
+		end
+	end
+end
 
 function toggle_screensaver(event)
 	script.on_event(defines.events.on_runtime_mod_setting_changed, mod_settings_changed)
@@ -170,9 +195,18 @@ function toggle_screensaver(event)
 		global.per_player[idx].game_view_settings = game_view_settings
 		script.on_event({defines.events.on_train_schedule_changed}, OnDispatcherUpdated)
 		script.on_event({defines.events.on_cutscene_waypoint_reached}, OnWaypointReached)
+		script.on_event({defines.events.on_entity_died}, OnTrainInvalidated)
+		script.on_event({defines.events.on_entity_damaged}, OnEntityDamaged)
+		script.on_event({defines.events.on_robot_pre_mined}, OnTrainInvalidated)
+		script.on_event({defines.events.on_pre_player_mined_item}, OnTrainInvalidated)
+		script.set_event_filter(defines.events.on_entity_died, {{filter = "rolling-stock"}})
+		script.set_event_filter(defines.events.on_robot_pre_mined, {{filter = "rolling-stock"}})
+		script.set_event_filter(defines.events.on_pre_player_mined_item, {{filter = "rolling-stock"}})
+		script.set_event_filter(defines.events.on_entity_damaged, {{filter = "type", type = "character"}})
 	else
 		game.get_player(idx).print("Turning off screensaver.")
 		global.per_player[idx].screensaver_state = disabled
+		global.per_player[idx].followed_train = nil
 
 		if game.get_player(idx).controller_type ~= defines.controllers.character then
 			game.get_player(idx).set_controller{type=defines.controllers.character, character=global.per_player[idx].character}
@@ -193,6 +227,10 @@ function toggle_screensaver(event)
         	script.on_event({defines.events.on_train_schedule_changed}, nil)
         	script.on_event({defines.events.on_cutscene_waypoint_reached}, nil)
         	script.on_event({defines.events.on_tick}, nil)
+        	script.on_event({defines.events.on_entity_died}, nil)
+			script.on_event({defines.events.on_entity_damaged}, nil)
+			script.on_event({defines.events.on_robot_pre_mined}, nil)
+			script.on_event({defines.events.on_pre_player_mined_item}, nil)
         end
 	end
 end
