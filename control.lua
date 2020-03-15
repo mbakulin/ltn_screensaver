@@ -212,6 +212,7 @@ function mod_settings_changed(event)
 		return
 	end
 	if event.setting == "ltn-scr-delivery-history-size" then
+		--Same: not initialized, can return.
 		if global.per_player[idx].delivery_history == nil then
 			return
 		end
@@ -222,10 +223,12 @@ function mod_settings_changed(event)
 		local new_pointer = 0
 		local old_pointer = global.per_player[idx].delivery_history_pointer
 		--Can be done more efficiently, but I'm too lazy to make several checks for sizes and all. Anyway, settings change is a rare thing.
-		for i=0,old_delivery_history_size-1 do
-			new_delivery_history[new_pointer] = old_delivery_history[old_pointer]
-			new_pointer = (new_pointer + 1) % new_delivery_history_size
-			old_pointer = (old_pointer + 1) % old_delivery_history_size
+		if new_delivery_history_size ~= 0 and old_delivery_history_size ~= 0 then
+			for i=0,old_delivery_history_size-1 do
+				new_delivery_history[new_pointer] = old_delivery_history[old_pointer]
+				new_pointer = (new_pointer + 1) % new_delivery_history_size
+				old_pointer = (old_pointer + 1) % old_delivery_history_size
+			end
 		end
 		global.per_player[idx].delivery_history = new_delivery_history
 		global.per_player[idx].delivery_history_size = new_delivery_history_size
