@@ -3,6 +3,7 @@ looking_for_train = "looking_for_train"
 following_train = "following_train"
 transition = "transition"
 controller_transition_time = 15
+epsilon = 0.01
 
 function has_value (tab, val)
     for index, value in pairs(tab) do
@@ -16,80 +17,95 @@ end
 function OnTick(event)
 	for idx, per_player in ipairs(global.per_player) do
 		--Check if any player is watching the screensaver
-		if per_player.followed_train ~= nil and per_player.screensaver_state ~= transition then
+		if per_player.followed_train ~= nil then
 			--Once every 2 seconds check if train either has left depot or heading to depot
 			if event.tick % 120 == 0 then
 				if per_player.followed_train.schedule.current ~= 1 then
 					global.per_player[idx].train_left_the_depot = true
 				elseif per_player.train_left_the_depot == true then
 					global.per_player[idx].screensaver_state = looking_for_train
+					script.on_event({defines.events.on_train_schedule_changed}, OnDispatcherUpdated)
 				end
 			end
-			if event.tick - per_player.cutscene_waypoint_reached_tick > controller_transition_time then
-				--teleport camera to the train location
-				game.get_player(idx).teleport(global.per_player[idx].followed_train.locomotives.front_movers[1].position)
-			else
-				--need some gradual transition between cutscene controller and ghost controller
-				--first controller_transition_time ticks teleport position is calculated as train_position+speed_per_tick*magic_coeff
-				--magic_coeff if gradually changing from 1 to 0 during transition time
-				local orientation = global.per_player[idx].followed_train.locomotives.front_movers[1].orientation
-				local angle = -orientation * math.pi * 2 + math.pi / 2
-				local dx = math.cos(angle) * global.per_player[idx].followed_train.locomotives.front_movers[1].speed
-				local dy = math.sin(angle) * global.per_player[idx].followed_train.locomotives.front_movers[1].speed
-				local target_position = global.per_player[idx].followed_train.locomotives.front_movers[1].position
-				local elapsed_transition_time = event.tick - per_player.cutscene_waypoint_reached_tick - 1
-				local magic_coeff = (controller_transition_time - elapsed_transition_time) / controller_transition_time
-				target_position.x = target_position.x + dx*magic_coeff
-				target_position.y = target_position.y - dy*magic_coeff
-				game.get_player(idx).teleport(target_position)
+			--Check if train changed direction
+			if per_player.locomotive ~= get_front_locomotive(idx) then
+				--Set new target locomotive and initiate gradual transition to it
+				global.per_player[idx].locomotive = get_front_locomotive(idx)
+				global.per_player[idx].locomotive_transition_start_time = event.tick
 			end
+			--Set default target position to current locomotive. If any transitions are needed, this position will be changed
+			local target_position = global.per_player[idx].locomotive.position
+			local t = event.tick - per_player.train_follow_start_tick
+			local T = per_player.transition_time
+			--Transition is in progress. Some math here: we want to cover distance D in T ticks,
+			--and do it slow at the start, fast in the middle, slow at the finish
+			--So we can choose some A*sin(kt) function to determine current speed, where t is ticks from the start of the transition.
+			--If we do some integration and so on, we can get speed per tick.
+			--There is probably some off-by-one error here but that shouldn't matter: with high T values it's irrelevant
+			--and with low T values transition is too fast to notice one-tick difference
+			if t < T then
+				local curren_position = game.get_player(idx).position
+				local distance_x = target_position.x - curren_position.x
+				local distance_y = target_position.y - curren_position.y
+				speed = (math.cos(math.pi*t/T) - math.cos(math.pi*(t + 1)/T)) / (1 + math.cos(math.pi*t/T))
+				target_position.x = curren_position.x + distance_x*speed
+				target_position.y = curren_position.y + distance_y*speed
+			else
+				--Gradually transition to new "front" locomotive if needed
+				if global.per_player[idx].locomotive_transition_start_time ~= nil
+					and event.tick - global.per_player[idx].locomotive_transition_start_time < global.per_player[idx].locomotive_transition_time then
+					local curren_position = game.get_player(idx).position
+					local ticks_left = global.per_player[idx].locomotive_transition_time - (event.tick - global.per_player[idx].locomotive_transition_start_time)
+					target_position.x = curren_position.x + (target_position.x - curren_position.x) / ticks_left
+					target_position.y = curren_position.y + (target_position.y - curren_position.y) / ticks_left
+				end
+			end
+			game.get_player(idx).teleport(target_position)
 		end
 	end
 end
 
-function OnWaypointReached(event)
-	--this is called when camera pan from player to train is complete
-	local idx = event.player_index
-	local per_player = global.per_player[idx]
-	if per_player.followed_train ~= nil then
-		--since we create a dummy waypoint with 0 duration, we should check if this waypoint was it.
-		if game.tick - per_player.train_follow_start_tick >= per_player.transition_time then
-			global.per_player[idx].screensaver_state = following_train
-			global.per_player[idx].cutscene_waypoint_reached_tick = event.tick
-			script.on_event({defines.events.on_tick}, OnTick)
-			--save alt game view settings
-			local alt_mode = game.get_player(idx).game_view_settings.show_entity_info 
-			game.get_player(idx).set_controller{type=defines.controllers.ghost}
-			--set game view settings the same way they exist in cutscene controller
-			game_view_settings =
-				{show_controller_gui = false,
-				show_minimap = false,
-				show_research_info = false,
-				show_entity_info = alt_mode,
-				show_alert_gui = false,
-				update_entity_selection = false,
-				show_rail_block_visualisation = false,
-				show_side_menu  = false,
-				show_map_view_options = false,
-				show_quickbar = false,
-				show_shortcut_bar = false}
-			game.get_player(idx).game_view_settings = game_view_settings
-			--teleport the player(=camera) to the necessary position, otherwise there is a one-tick flicker
-			game.get_player(idx).teleport(global.per_player[idx].followed_train.locomotives.front_movers[1].position)
-		end
+--Check what is the front locomotive
+function get_front_locomotive(idx)
+	local train = global.per_player[idx].followed_train
+	local current_locomotive = global.per_player[idx].locomotive
+	--Moving forward, use front_movers (should be always present)
+	if train.speed > epsilon then
+		return train.locomotives.front_movers[1]
 	end
+	--Moving backward, use back_movers (if present)
+	if train.speed < -epsilon and train.locomotives.back_movers[1] ~= nil then
+		return train.locomotives.back_movers[1]
+	end
+	--Locomotive is not chosen yet, and the train is stationary. Use front_movers
+	if current_locomotive == nil and math.abs(train.speed) <= epsilon then
+		return train.locomotives.front_movers[1]
+	end
+	--If train is stationary, use previous choice
+	if math.abs(train.speed) <= epsilon then
+		return current_locomotive
+	end
+	--Shouldn't be here, disable the screensaver before we crash
+	local fake_event = {}
+	fake_event.player_index = idx
+	toggle_screensaver(fake_event)
 end
 
 function OnDispatcherUpdated(event)
+	--If schedule update is made by a player, ignore event
+	if event.player_index ~= nil then
+		return
+	end
 	--If schedule update is just resetting the train that has returned to the depot, ignore it
-	if table_size(event.train.schedule.records) == 1 then
+	if table_size(event.train.schedule.records) <= 1 then
 		return
 	end
 
 	--parse train schedule to detect what item is it going to deliver
 	local item = nil
 	for index, wait_condition in pairs(event.train.schedule.records[2].wait_conditions) do
-		if wait_condition.condition ~= nil then
+		--hopefully, this checks will be enough in order not to crash if schedule updated not by LTN
+		if wait_condition.condition ~= nil and wait_condition.condition.first_signal ~= nil then
 			item = 	wait_condition.condition.first_signal.name
 			break
 		end
@@ -108,36 +124,14 @@ function OnDispatcherUpdated(event)
 					global.per_player[idx].delivery_history[per_player.delivery_history_pointer] = item
 					global.per_player[idx].delivery_history_pointer = (per_player.delivery_history_pointer + 1) % per_player.delivery_history_size 
 				end
-
 				global.per_player[idx].screensaver_state = following_train
 				global.per_player[idx].followed_train = event.train
+				global.per_player[idx].locomotive = nil
+				global.per_player[idx].locomotive = get_front_locomotive(idx)
 				global.per_player[idx].train_left_the_depot = false
 				global.per_player[idx].train_follow_start_tick = game.tick
-				if per_player.character == nil then
-					--starting to followe the first train. save the character associated with the player
-					global.per_player[idx].character = game.get_player(idx).character
-					--subscribe to entity damaged event. if damaged entity is character and it is killed, turn off the screensaver
-					--we can't chec it in entity_died, because we need transfer the control to the character entity a bit earlier
-					script.on_event({defines.events.on_entity_damaged}, OnEntityDamaged)
-					script.set_event_filter(defines.events.on_entity_damaged, {{filter = "type", type = "character"}})
-					--subscribe to events that can invalidate the train that is being followed by the screensaver
-					script.on_event({defines.events.on_entity_died}, OnTrainInvalidated)
-					script.on_event({defines.events.on_robot_pre_mined}, OnTrainInvalidated)
-					script.on_event({defines.events.on_pre_player_mined_item}, OnTrainInvalidated)
-					script.set_event_filter(defines.events.on_entity_died, {{filter = "rolling-stock"}})
-					script.set_event_filter(defines.events.on_robot_pre_mined, {{filter = "rolling-stock"}})
-					script.set_event_filter(defines.events.on_pre_player_mined_item, {{filter = "rolling-stock"}})
-				end
-				--Initialize the transition with the cutscene controller
-				--probably there can be some shortcuts in case transition time is 0, but don't touch that is working(?)
-				local last_position = game.get_player(idx).position
-				local waypoints = 
-					{{position = last_position, transition_time = 0, time_to_wait = 0},
-					{target = event.train.locomotives.front_movers[1], transition_time = per_player.transition_time, time_to_wait = 1}}
-				local alt_mode = game.get_player(idx).game_view_settings.show_entity_info 
-				global.per_player[idx].screensaver_state = transition
-				game.get_player(idx).set_controller{type=defines.controllers.cutscene, waypoints = waypoints, final_transition_time = 10000}
-				game.get_player(idx).game_view_settings.show_entity_info = alt_mode
+				--subscribe on tick events
+				script.on_event({defines.events.on_tick}, OnTick)
 			end
 		end
 	end
@@ -145,6 +139,7 @@ end
 
 function OnTrainInvalidated(event)
 	for index, per_player in pairs(global.per_player) do
+		--if something happened (killed, mined by robot or player) to the train that is being watched, disable screensaver for the player
 		if per_player.followed_train ~= nil and has_value(per_player.followed_train.carriages, event.entity) then
 			-- Fake pressing disable screensaver hotkey
 			local fake_event = {}
@@ -156,7 +151,9 @@ end
 
 function OnEntityDamaged(event)
 	for index, per_player in pairs(global.per_player) do
+		--check if damaged entity is a character associated with a player
 		if per_player.screensaver_state ~= disabled and per_player.character == event.entity then
+			--if damage will kill the entity, disable screensaver so player can see death screen
 			if event.entity.health - event.final_damage_amount <= 0 then
 				-- Fake pressing disable screensaver hotkey
 				local fake_event = {}
@@ -192,8 +189,10 @@ function toggle_screensaver(event)
 			global.per_player[idx].delivery_history_pointer = 0
 		end
 		global.per_player[idx].transition_time = game.players[idx].mod_settings["ltn-scr-transition-time"].value
+		global.per_player[idx].locomotive_transition_time = game.players[idx].mod_settings["ltn-scr-locomotive-transition-time"].value
 		global.per_player[idx].screensaver_state = looking_for_train
 		global.per_player[idx].followed_train = nil
+		global.per_player[idx].locomotive = nil
 		--save game view settings for restoring after the screesaver ends
 		local game_view_settings =
 				{show_controller_gui = game.get_player(idx).game_view_settings.show_controller_gui,
@@ -209,7 +208,23 @@ function toggle_screensaver(event)
 				show_shortcut_bar = game.get_player(idx).game_view_settings.show_shortcut_bar}
 		global.per_player[idx].game_view_settings = game_view_settings
 		script.on_event({defines.events.on_train_schedule_changed}, OnDispatcherUpdated)
-		script.on_event({defines.events.on_cutscene_waypoint_reached}, OnWaypointReached)
+		if global.per_player[idx].character == nil then
+				--Save the character associated with the player
+				global.per_player[idx].character = game.get_player(idx).character
+				--subscribe to entity damaged event. if damaged entity is character and it is killed, turn off the screensaver
+				--we can't check it in entity_died, because we need transfer the control to the character entity a bit earlier
+				script.on_event({defines.events.on_entity_damaged}, OnEntityDamaged)
+				script.set_event_filter(defines.events.on_entity_damaged, {{filter = "type", type = "character"}})
+				--subscribe to events that can invalidate the train that is being followed by the screensaver
+				script.on_event({defines.events.on_entity_died}, OnTrainInvalidated)
+				script.on_event({defines.events.on_robot_pre_mined}, OnTrainInvalidated)
+				script.on_event({defines.events.on_pre_player_mined_item}, OnTrainInvalidated)
+				script.set_event_filter(defines.events.on_entity_died, {{filter = "rolling-stock"}})
+				script.set_event_filter(defines.events.on_robot_pre_mined, {{filter = "rolling-stock"}})
+				script.set_event_filter(defines.events.on_pre_player_mined_item, {{filter = "rolling-stock"}})
+			end
+		--Disable player movement etc
+		game.get_player(idx).set_controller{type=defines.controllers.ghost}
 	else
 		game.get_player(idx).print("Turning off screensaver.")
 		global.per_player[idx].screensaver_state = disabled
@@ -236,7 +251,6 @@ function toggle_screensaver(event)
         --and disable subscriptions if true
         if disable_event_subscription == true then
         	script.on_event({defines.events.on_train_schedule_changed}, nil)
-        	script.on_event({defines.events.on_cutscene_waypoint_reached}, nil)
         	script.on_event({defines.events.on_tick}, nil)
         	script.on_event({defines.events.on_entity_died}, nil)
 			script.on_event({defines.events.on_entity_damaged}, nil)
@@ -258,6 +272,10 @@ function mod_settings_changed(event)
 	if global.per_player == nil then return end
 	if event.setting == "ltn-scr-transition-time" then
 		global.per_player[idx].transition_time = game.players[idx].mod_settings["ltn-scr-transition-time"].value
+		return
+	end
+	if event.setting == "ltn-scr-locomotive-transition-time" then
+		global.per_player[idx].locomotive_transition_time = game.players[idx].mod_settings["ltn-scr-transition-time"].value
 		return
 	end
 	if event.setting == "ltn-scr-delivery-history-size" then

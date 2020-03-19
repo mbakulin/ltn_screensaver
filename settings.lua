@@ -10,6 +10,15 @@ data:extend({
     },
     {
         type = "int-setting",
+        name = "ltn-scr-locomotive-transition-time",
+        localised_name = "Locomotive transition time",
+        localised_description = "Determines number of ticks it takes to pan camera from one locomotive to another when train changes direction.",
+        setting_type = "runtime-per-user",
+        default_value = 15,
+        minimum_value = 0
+    },
+    {
+        type = "int-setting",
         name = "ltn-scr-delivery-history-size",
         localised_name = "Delivery history size",
         localised_description = "If an item was delivered in one of previous <value> deliveries, it won't be shown again. Set to 0 to disable.",
