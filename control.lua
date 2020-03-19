@@ -260,6 +260,44 @@ function toggle_screensaver(event)
 	end
 end
 
+function toggle_gui(event)
+	local idx = event.player_index
+	--screensaver has never been activated, ignore keypress
+	if global.per_player == nil then
+		return
+	end
+
+	--screensaver has never been activated by this player, ignore keypress
+	if global.per_player[idx] == nil then
+		return
+	end
+
+	--Screensaver for the current player is not active, ignore keypress
+	if global.per_player[idx].screensaver_state == disabled then
+		return
+	end
+
+	if global.per_player[idx].gui_is_on == nil or global.per_player[idx].gui_is_on == true then
+		disabled_game_view_settings =
+			{show_controller_gui = false,
+			show_minimap = false,
+			show_research_info = false,
+			show_entity_info = game.get_player(idx).game_view_settings.show_entity_info ,
+			show_alert_gui = false,
+			update_entity_selection = false,
+			show_rail_block_visualisation = false,
+			show_side_menu  = false,
+			show_map_view_options = false,
+			show_quickbar = false,
+			show_shortcut_bar = false}
+		game.get_player(idx).game_view_settings = disabled_game_view_settings
+		global.per_player[idx].gui_is_on = false
+	else
+		game.get_player(idx).game_view_settings = global.per_player[idx].game_view_settings
+		global.per_player[idx].gui_is_on = true
+	end
+end
+
 function mod_settings_changed(event)
 	if event.player_index == nil then
 		return
@@ -305,3 +343,4 @@ function mod_settings_changed(event)
 end
 
 script.on_event("pressed-screensaver-key", toggle_screensaver)
+script.on_event("pressed-screensaver-hide-gui-key", toggle_gui)
