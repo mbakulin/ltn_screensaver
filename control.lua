@@ -313,7 +313,7 @@ function mod_settings_changed(event)
 		return
 	end
 	if event.setting == "ltn-scr-locomotive-transition-time" then
-		global.per_player[idx].locomotive_transition_time = game.players[idx].mod_settings["ltn-scr-transition-time"].value
+		global.per_player[idx].locomotive_transition_time = game.players[idx].mod_settings["ltn-scr-locomotive-transition-time"].value
 		return
 	end
 	if event.setting == "ltn-scr-delivery-history-size" then
