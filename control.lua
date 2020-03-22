@@ -179,7 +179,7 @@ function toggle_screensaver(event)
 	end
 
 	if global.per_player[idx].screensaver_state == nil or global.per_player[idx].screensaver_state == disabled then
-		game.get_player(idx).print("Turning on screensaver. Press CTRL+S to disable.")
+		game.get_player(idx).print("Turning on screensaver. Press CTRL+S to disable. Press CTRL+H to toggle gui")
 		global.per_player[idx].delivery_history_size = game.players[idx].mod_settings["ltn-scr-delivery-history-size"].value
 		if game.players[idx].mod_settings["ltn-scr-reset-history"].value == true or global.per_player[idx].delivery_history == nil then
 			global.per_player[idx].delivery_history = {}
@@ -225,6 +225,11 @@ function toggle_screensaver(event)
 			end
 		--Disable player movement etc
 		game.get_player(idx).set_controller{type=defines.controllers.ghost}
+		--Turn off the gui: set gui variable to on and send fake event
+		global.per_player[idx].gui_is_on = true
+		local event = {}
+		event.player_index = idx
+		toggle_gui(event)
 	else
 		game.get_player(idx).print("Turning off screensaver.")
 		global.per_player[idx].screensaver_state = disabled
@@ -291,6 +296,9 @@ function toggle_gui(event)
 			show_quickbar = false,
 			show_shortcut_bar = false}
 		game.get_player(idx).game_view_settings = disabled_game_view_settings
+		--clean cursor to hide the menu, if any
+		game.get_player(idx).clean_cursor()
+		game.get_player(idx).clear_selected_entity()
 		global.per_player[idx].gui_is_on = false
 	else
 		game.get_player(idx).game_view_settings = global.per_player[idx].game_view_settings
