@@ -174,12 +174,12 @@ function toggle_screensaver(event)
 	end
 
 	if game.get_player(idx).controller_type == defines.controllers.editor then
-		game.get_player(idx).print("Can't be used with editor controller.")
+		game.get_player(idx).print({"editor-controller-check"})
 		return
 	end
 
 	if global.per_player[idx].screensaver_state == nil or global.per_player[idx].screensaver_state == disabled then
-		game.get_player(idx).print("Turning on screensaver. Press CTRL+S to disable. Press CTRL+H to toggle gui")
+		game.get_player(idx).print({"turn-screensaver-on"})
 		global.per_player[idx].delivery_history_size = game.players[idx].mod_settings["ltn-scr-delivery-history-size"].value
 		if game.players[idx].mod_settings["ltn-scr-reset-history"].value == true or global.per_player[idx].delivery_history == nil then
 			global.per_player[idx].delivery_history = {}
@@ -231,7 +231,7 @@ function toggle_screensaver(event)
 		event.player_index = idx
 		toggle_gui(event)
 	else
-		game.get_player(idx).print("Turning off screensaver.")
+		game.get_player(idx).print({"turn-screensaver-off"})
 		global.per_player[idx].screensaver_state = disabled
 		global.per_player[idx].followed_train = nil
 

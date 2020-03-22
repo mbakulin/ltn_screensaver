@@ -2,8 +2,8 @@ data:extend({
     {
         type = "int-setting",
         name = "ltn-scr-transition-time",
-        localised_name = "Transition time",
-        localised_description = "Determines number of ticks it takes to pan camera to the next train. Set to 0 for immediate transfers.",
+        localised_name = {"transition-time"},
+        localised_description = {"transition-time-description"},
         setting_type = "runtime-per-user",
         default_value = 300,
         minimum_value = 0
@@ -11,8 +11,8 @@ data:extend({
     {
         type = "int-setting",
         name = "ltn-scr-locomotive-transition-time",
-        localised_name = "Locomotive transition time",
-        localised_description = "Determines number of ticks it takes to pan camera from one locomotive to another when train changes direction.",
+        localised_name = {"locomotive-transition-time"},
+        localised_description = {"locomotive-transition-time-description"},
         setting_type = "runtime-per-user",
         default_value = 15,
         minimum_value = 0
@@ -20,8 +20,8 @@ data:extend({
     {
         type = "int-setting",
         name = "ltn-scr-delivery-history-size",
-        localised_name = "Delivery history size",
-        localised_description = "If an item was delivered in one of previous <value> deliveries, it won't be shown again. Set to 0 to disable.",
+        localised_name = {"delivery-history-size"},
+        localised_description = {"delivery-history-size-description"},
         setting_type = "runtime-per-user",
         default_value = 10,
         minimum_value = 0
@@ -29,8 +29,8 @@ data:extend({
     {
         type = "bool-setting",
         name = "ltn-scr-reset-history",
-        localised_name = "Reset delivery history",
-        localised_description = "Clear delivery history when screensaver is turned off",
+        localised_name = {"reset-delivery-history"},
+        localised_description = {"reset-delivery-history-description"},
         setting_type = "runtime-per-user",
         default_value = false
     }
