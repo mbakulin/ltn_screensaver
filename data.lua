@@ -4,7 +4,7 @@ data:extend({
     name = "pressed-screensaver-key",
     localised_name = {"start-screensaver"},
     key_sequence = "CONTROL + S",
-    consuming = "script-only",
+    consuming = "none",
     enabled_while_in_cutscene = false
   },
   {
@@ -13,7 +13,7 @@ data:extend({
     localised_name = {"hide-gui"},
     localised_description = {"hide-gui-description"},
     key_sequence = "CONTROL + H",
-    consuming = "script-only",
+    consuming = "none",
     enabled_while_in_cutscene = false
   } 
 })

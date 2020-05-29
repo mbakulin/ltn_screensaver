@@ -1,11 +1,11 @@
 {
     "name": "LTN_screensaver",
-    "version": "0.18.4",
+    "version": "0.18.5",
     "title": "LTN Screensaver",
     "author": "ruspartisan",
     "contact": "bakulinm@gmail.com",
     "homepage": "",
     "factorio_version": "0.18",
-    "dependencies": ["base >= 0.18", "OpteraLib >= 0.2.0", "LogisticTrainNetwork >= 1.12.0"],
+    "dependencies": ["base >= 0.18.22", "OpteraLib >= 0.2.0", "LogisticTrainNetwork >= 1.13.0"],
     "description": "This mod allows automatically tracking a random train in map view to act as a screensaver. When the train arrives at the LTN depot, a new one is chosen when a delivery is created."
 }

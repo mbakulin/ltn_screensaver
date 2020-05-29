@@ -100,10 +100,14 @@ function OnDispatcherUpdated(event)
 	if table_size(event.train.schedule.records) <= 1 then
 		return
 	end
+	--Only use trains that are either waiting at the depot or heading for temp station
+	if event.train.schedule.current > 2 then
+		return
+	end
 
 	--parse train schedule to detect what item is it going to deliver
 	local item = nil
-	for index, wait_condition in pairs(event.train.schedule.records[2].wait_conditions) do
+	for index, wait_condition in pairs(event.train.schedule.records[3].wait_conditions) do
 		--hopefully, this checks will be enough in order not to crash if schedule updated not by LTN
 		if wait_condition.condition ~= nil and wait_condition.condition.first_signal ~= nil then
 			item = 	wait_condition.condition.first_signal.name
