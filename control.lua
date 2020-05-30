@@ -14,6 +14,19 @@ function has_value (tab, val)
     return false
 end
 
+function dump(o)
+	if type(o) == 'table' then
+	   local s = '{ '
+	   for k,v in pairs(o) do
+		  if type(k) ~= 'number' then k = '"'..k..'"' end
+		  s = s .. '['..k..'] = ' .. dump(v) .. ','
+	   end
+	   return s .. '} '
+	else
+	   return tostring(o)
+	end
+ end
+
 function OnTick(event)
 	for idx, per_player in ipairs(global.per_player) do
 		--Check if any player is watching the screensaver
@@ -24,7 +37,7 @@ function OnTick(event)
 					global.per_player[idx].train_left_the_depot = true
 				elseif per_player.train_left_the_depot == true then
 					global.per_player[idx].screensaver_state = looking_for_train
-					script.on_event({defines.events.on_train_schedule_changed}, OnDispatcherUpdated)
+					script.on_event(remote.call("logistic-train-network", "on_dispatcher_updated"), on_dispatcher_updated)
 				end
 			end
 			--Check if train changed direction
@@ -91,54 +104,43 @@ function get_front_locomotive(idx)
 	toggle_screensaver(fake_event)
 end
 
-function OnDispatcherUpdated(event)
-	--If schedule update is made by a player, ignore event
-	if event.player_index ~= nil then
+function on_dispatcher_updated(event)
+	if global.deliveries == nil then
+		global.deliveries = event.deliveries
 		return
 	end
-	--If schedule update is just resetting the train that has returned to the depot, ignore it
-	if table_size(event.train.schedule.records) <= 1 then
-		return
-	end
-	--Only use trains that are either waiting at the depot or heading for temp station
-	if event.train.schedule.current > 2 then
-		return
-	end
-
-	--parse train schedule to detect what item is it going to deliver
-	local item = nil
-	for index, wait_condition in pairs(event.train.schedule.records[3].wait_conditions) do
-		--hopefully, this checks will be enough in order not to crash if schedule updated not by LTN
-		if wait_condition.condition ~= nil and wait_condition.condition.first_signal ~= nil then
-			item = 	wait_condition.condition.first_signal.name
-			break
-		end
-	end
-	if item == nil then
-		--shouldn't be here, but just in case
-		return
-	end
-
-	--find all players that are looking for new train to followe
-	for idx, per_player in ipairs(global.per_player) do
-		if per_player.screensaver_state == looking_for_train then
-			--check if player already watched delivery of item recently
-			if per_player.delivery_history_size == 0 or has_value(per_player.delivery_history, item) == false then
-				if per_player.delivery_history_size ~= 0 then
-					global.per_player[idx].delivery_history[per_player.delivery_history_pointer] = item
-					global.per_player[idx].delivery_history_pointer = (per_player.delivery_history_pointer + 1) % per_player.delivery_history_size 
+	for train_id, delivery in pairs(event.deliveries) do
+		if not global.deliveries[train_id] then
+			--get item to be delivered
+			item, count = next(delivery.shipment, nil)
+			train = train_id
+			--find all players that are looking for new train to followe
+			for idx, per_player in ipairs(global.per_player) do
+				if per_player.screensaver_state == looking_for_train then
+					--check if player already watched delivery of item recently
+					if per_player.delivery_history_size == 0 or has_value(per_player.delivery_history, item) == false then
+						--If force is incorrect, ignore the train
+						if game.get_player(idx).force ~= delivery.force then
+							break
+						end
+						if per_player.delivery_history_size ~= 0 then
+							global.per_player[idx].delivery_history[per_player.delivery_history_pointer] = item
+							global.per_player[idx].delivery_history_pointer = (per_player.delivery_history_pointer + 1) % per_player.delivery_history_size
+						end
+						global.per_player[idx].screensaver_state = following_train
+						global.per_player[idx].followed_train = delivery.train
+						global.per_player[idx].locomotive = nil
+						global.per_player[idx].locomotive = get_front_locomotive(idx)
+						global.per_player[idx].train_left_the_depot = false
+						global.per_player[idx].train_follow_start_tick = game.tick
+						--subscribe on tick events
+						script.on_event({defines.events.on_tick}, OnTick)
+					end
 				end
-				global.per_player[idx].screensaver_state = following_train
-				global.per_player[idx].followed_train = event.train
-				global.per_player[idx].locomotive = nil
-				global.per_player[idx].locomotive = get_front_locomotive(idx)
-				global.per_player[idx].train_left_the_depot = false
-				global.per_player[idx].train_follow_start_tick = game.tick
-				--subscribe on tick events
-				script.on_event({defines.events.on_tick}, OnTick)
 			end
 		end
 	end
+	global.deliveries = event.deliveries
 end
 
 function OnTrainInvalidated(event)
@@ -211,7 +213,7 @@ function toggle_screensaver(event)
 				show_quickbar = game.get_player(idx).game_view_settings.show_quickbar,
 				show_shortcut_bar = game.get_player(idx).game_view_settings.show_shortcut_bar}
 		global.per_player[idx].game_view_settings = game_view_settings
-		script.on_event({defines.events.on_train_schedule_changed}, OnDispatcherUpdated)
+		script.on_event(remote.call("logistic-train-network", "on_dispatcher_updated"), on_dispatcher_updated)
 		if global.per_player[idx].character == nil then
 				--Save the character associated with the player
 				global.per_player[idx].character = game.get_player(idx).character
@@ -259,7 +261,6 @@ function toggle_screensaver(event)
         end
         --and disable subscriptions if true
         if disable_event_subscription == true then
-        	script.on_event({defines.events.on_train_schedule_changed}, nil)
         	script.on_event({defines.events.on_tick}, nil)
         	script.on_event({defines.events.on_entity_died}, nil)
 			script.on_event({defines.events.on_entity_damaged}, nil)
