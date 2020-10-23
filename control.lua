@@ -73,6 +73,9 @@ function OnTick(event)
 				end
 			end
 			game.get_player(idx).teleport(target_position)
+		elseif global.per_player[idx].screensaver_state == looking_for_train then
+			local target_position = global.per_player[idx].character.position
+			game.get_player(idx).teleport(target_position)
 		end
 	end
 end
