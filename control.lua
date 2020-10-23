@@ -33,11 +33,10 @@ function OnTick(event)
 		if per_player.followed_train ~= nil then
 			--Once every 2 seconds check if train either has left depot or heading to depot
 			if event.tick % 120 == 0 then
-				if per_player.followed_train.schedule.current ~= 1 then
+				if per_player.followed_train.schedule.current ~= 1 and  global.per_player[idx].train_left_the_depot == false then
 					global.per_player[idx].train_left_the_depot = true
-				elseif per_player.train_left_the_depot == true then
+				elseif per_player.followed_train.schedule.current == 1 and per_player.train_left_the_depot == true then
 					global.per_player[idx].screensaver_state = looking_for_train
-					script.on_event(remote.call("logistic-train-network", "on_dispatcher_updated"), on_dispatcher_updated)
 				end
 			end
 			--Check if train changed direction
@@ -133,8 +132,6 @@ function on_dispatcher_updated(event)
 						global.per_player[idx].locomotive = get_front_locomotive(idx)
 						global.per_player[idx].train_left_the_depot = false
 						global.per_player[idx].train_follow_start_tick = game.tick
-						--subscribe on tick events
-						script.on_event({defines.events.on_tick}, OnTick)
 					end
 				end
 			end
@@ -171,7 +168,6 @@ function OnEntityDamaged(event)
 end
 
 function toggle_screensaver(event)
-	script.on_event(defines.events.on_runtime_mod_setting_changed, mod_settings_changed)
 	local idx = event.player_index
 	if global.per_player == nil then global.per_player = {} end
 
@@ -213,21 +209,9 @@ function toggle_screensaver(event)
 				show_quickbar = game.get_player(idx).game_view_settings.show_quickbar,
 				show_shortcut_bar = game.get_player(idx).game_view_settings.show_shortcut_bar}
 		global.per_player[idx].game_view_settings = game_view_settings
-		script.on_event(remote.call("logistic-train-network", "on_dispatcher_updated"), on_dispatcher_updated)
 		if global.per_player[idx].character == nil then
 				--Save the character associated with the player
 				global.per_player[idx].character = game.get_player(idx).character
-				--subscribe to entity damaged event. if damaged entity is character and it is killed, turn off the screensaver
-				--we can't check it in entity_died, because we need transfer the control to the character entity a bit earlier
-				script.on_event({defines.events.on_entity_damaged}, OnEntityDamaged)
-				script.set_event_filter(defines.events.on_entity_damaged, {{filter = "type", type = "character"}})
-				--subscribe to events that can invalidate the train that is being followed by the screensaver
-				script.on_event({defines.events.on_entity_died}, OnTrainInvalidated)
-				script.on_event({defines.events.on_robot_pre_mined}, OnTrainInvalidated)
-				script.on_event({defines.events.on_pre_player_mined_item}, OnTrainInvalidated)
-				script.set_event_filter(defines.events.on_entity_died, {{filter = "rolling-stock"}})
-				script.set_event_filter(defines.events.on_robot_pre_mined, {{filter = "rolling-stock"}})
-				script.set_event_filter(defines.events.on_pre_player_mined_item, {{filter = "rolling-stock"}})
 			end
 		--Disable player movement etc
 		game.get_player(idx).set_controller{type=defines.controllers.ghost}
@@ -250,23 +234,6 @@ function toggle_screensaver(event)
 		if global.per_player[idx].game_view_settings ~= nil then
 			game.get_player(idx).game_view_settings = global.per_player[idx].game_view_settings
 		end
-
-		--check if the player was the last with active screensaver
-		local disable_event_subscription = true
-		for index, per_player in ipairs(global.per_player) do
-    		if per_player.screensaver_state ~= nil or per_player.screensaver_state ~= disabled then
-            	disable_schedule_update_subscription = false
-            	break
-        	end
-        end
-        --and disable subscriptions if true
-        if disable_event_subscription == true then
-        	script.on_event({defines.events.on_tick}, nil)
-        	script.on_event({defines.events.on_entity_died}, nil)
-			script.on_event({defines.events.on_entity_damaged}, nil)
-			script.on_event({defines.events.on_robot_pre_mined}, nil)
-			script.on_event({defines.events.on_pre_player_mined_item}, nil)
-        end
 	end
 end
 
@@ -355,5 +322,30 @@ function mod_settings_changed(event)
 	end
 end
 
-script.on_event("pressed-screensaver-key", toggle_screensaver)
-script.on_event("pressed-screensaver-hide-gui-key", toggle_gui)
+function subscribe_to_events(event)
+	--Subscribe to hotkeys events
+	script.on_event("pressed-screensaver-key", toggle_screensaver)
+	script.on_event("pressed-screensaver-hide-gui-key", toggle_gui)
+	--Subscribe to mod settings change event
+	script.on_event(defines.events.on_runtime_mod_setting_changed, mod_settings_changed)
+	--Subscribe to LTN schedule update events
+	script.on_event(remote.call("logistic-train-network", "on_dispatcher_updated"), on_dispatcher_updated)
+	--subscribe to entity damaged event. if damaged entity is character and it is killed, turn off the screensaver
+	--we can't check it in entity_died, because we need transfer the control to the character entity a bit earlier
+	script.on_event({defines.events.on_entity_damaged}, OnEntityDamaged)
+	script.set_event_filter(defines.events.on_entity_damaged, {{filter = "type", type = "character"}})
+	--subscribe to events that can invalidate the train that is being followed by the screensaver
+	script.on_event({defines.events.on_entity_died}, OnTrainInvalidated)
+	script.on_event({defines.events.on_robot_pre_mined}, OnTrainInvalidated)
+	script.on_event({defines.events.on_pre_player_mined_item}, OnTrainInvalidated)
+	script.set_event_filter(defines.events.on_entity_died, {{filter = "rolling-stock"}})
+	script.set_event_filter(defines.events.on_robot_pre_mined, {{filter = "rolling-stock"}})
+	script.set_event_filter(defines.events.on_pre_player_mined_item, {{filter = "rolling-stock"}})
+	--subscribe on tick events. not optimal because when screensaver is inactive it is still called but probably better for desyncs
+	script.on_event({defines.events.on_tick}, OnTick)
+
+	if global.per_player == nil then global.per_player = {} end
+end
+
+script.on_init(subscribe_to_events)
+script.on_load(subscribe_to_events)
