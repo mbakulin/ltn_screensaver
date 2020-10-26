@@ -28,6 +28,8 @@ function dump(o)
  end
 
 function OnTick(event)
+	--screensaver has never been activated, ignore event
+	if global.per_player == nil then return end
 	for idx, per_player in ipairs(global.per_player) do
 		--Check if any player is watching the screensaver
 		if per_player.followed_train ~= nil then
@@ -111,39 +113,44 @@ function on_dispatcher_updated(event)
 		global.deliveries = event.deliveries
 		return
 	end
-	for train_id, delivery in pairs(event.deliveries) do
-		if not global.deliveries[train_id] then
-			--get item to be delivered
-			item, count = next(delivery.shipment, nil)
-			train = train_id
-			--find all players that are looking for new train to followe
-			for idx, per_player in ipairs(global.per_player) do
-				if per_player.screensaver_state == looking_for_train then
-					--check if player already watched delivery of item recently
-					if per_player.delivery_history_size == 0 or has_value(per_player.delivery_history, item) == false then
-						--If force is incorrect, ignore the train
-						if game.get_player(idx).force ~= delivery.force then
-							break
+	if global.per_player ~= nil then
+		for train_id, delivery in pairs(event.deliveries) do
+			if not global.deliveries[train_id] then
+				--get item to be delivered
+				item, count = next(delivery.shipment, nil)
+				train = train_id
+				--find all players that are looking for new train to follow
+				for idx, per_player in ipairs(global.per_player) do
+					if per_player.screensaver_state == looking_for_train then
+						--check if player already watched delivery of item recently
+						if per_player.delivery_history_size == 0 or has_value(per_player.delivery_history, item) == false then
+							--If force is incorrect, ignore the train
+							if game.get_player(idx).force ~= delivery.force then
+								break
+							end
+							if per_player.delivery_history_size ~= 0 then
+								global.per_player[idx].delivery_history[per_player.delivery_history_pointer] = item
+								global.per_player[idx].delivery_history_pointer = (per_player.delivery_history_pointer + 1) % per_player.delivery_history_size
+							end
+							global.per_player[idx].screensaver_state = following_train
+							global.per_player[idx].followed_train = delivery.train
+							global.per_player[idx].locomotive = nil
+							global.per_player[idx].locomotive = get_front_locomotive(idx)
+							global.per_player[idx].train_left_the_depot = false
+							global.per_player[idx].train_follow_start_tick = game.tick
 						end
-						if per_player.delivery_history_size ~= 0 then
-							global.per_player[idx].delivery_history[per_player.delivery_history_pointer] = item
-							global.per_player[idx].delivery_history_pointer = (per_player.delivery_history_pointer + 1) % per_player.delivery_history_size
-						end
-						global.per_player[idx].screensaver_state = following_train
-						global.per_player[idx].followed_train = delivery.train
-						global.per_player[idx].locomotive = nil
-						global.per_player[idx].locomotive = get_front_locomotive(idx)
-						global.per_player[idx].train_left_the_depot = false
-						global.per_player[idx].train_follow_start_tick = game.tick
 					end
 				end
 			end
 		end
 	end
+	-- if screensaver has never been avtivated, just update deliveries table
 	global.deliveries = event.deliveries
 end
 
 function OnTrainInvalidated(event)
+	--screensaver has never been activated, ignore event
+	if global.per_player == nil then return end
 	for index, per_player in pairs(global.per_player) do
 		--if something happened (killed, mined by robot or player) to the train that is being watched, disable screensaver for the player
 		if per_player.followed_train ~= nil and has_value(per_player.followed_train.carriages, event.entity) then
@@ -156,6 +163,8 @@ function OnTrainInvalidated(event)
 end
 
 function OnEntityDamaged(event)
+	--screensaver has never been activated, ignore event
+	if global.per_player == nil then return end
 	for index, per_player in pairs(global.per_player) do
 		--check if damaged entity is a character associated with a player
 		if per_player.screensaver_state ~= disabled and per_player.character == event.entity then
@@ -289,7 +298,7 @@ function mod_settings_changed(event)
 	if event.setting_type ~= "runtime-per-user" then
 		return
 	end
-	--If per player is nil, it means screensaver has never been started yet, and everything will be initialized anyway on first start
+	--If per player is nil, it means screensaver has never been started yet, and everything will be initialized anyway on first start	
 	if global.per_player == nil then return end
 	if event.setting == "ltn-scr-transition-time" then
 		global.per_player[idx].transition_time = game.players[idx].mod_settings["ltn-scr-transition-time"].value
@@ -346,8 +355,6 @@ function subscribe_to_events(event)
 	script.set_event_filter(defines.events.on_pre_player_mined_item, {{filter = "rolling-stock"}})
 	--subscribe on tick events. not optimal because when screensaver is inactive it is still called but probably better for desyncs
 	script.on_event({defines.events.on_tick}, OnTick)
-
-	if global.per_player == nil then global.per_player = {} end
 end
 
 script.on_init(subscribe_to_events)
