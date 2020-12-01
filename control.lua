@@ -281,7 +281,7 @@ function toggle_gui(event)
 			show_shortcut_bar = false}
 		game.get_player(idx).game_view_settings = disabled_game_view_settings
 		--clean cursor to hide the menu, if any
-		game.get_player(idx).clean_cursor()
+		game.get_player(idx).clear_cursor()
 		game.get_player(idx).clear_selected_entity()
 		global.per_player[idx].gui_is_on = false
 	else
