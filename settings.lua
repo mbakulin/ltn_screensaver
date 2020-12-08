@@ -33,5 +33,12 @@ data:extend({
         localised_description = {"reset-delivery-history-description"},
         setting_type = "runtime-per-user",
         default_value = false
+    },
+    {
+        type = "bool-setting",
+        name = "ltn-scr-debug-output",
+        localised_name = {"debug-output"},
+        setting_type = "runtime-global",
+        default_value = false
     }
 })

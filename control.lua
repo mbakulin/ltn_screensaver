@@ -1,4 +1,4 @@
-disabled = "disbled"
+disabled = "disabled"
 looking_for_train = "looking_for_train"
 following_train = "following_train"
 transition = "transition"
@@ -37,8 +37,14 @@ function OnTick(event)
 			if event.tick % 120 == 0 then
 				if per_player.followed_train.schedule.current ~= 1 and  global.per_player[idx].train_left_the_depot == false then
 					global.per_player[idx].train_left_the_depot = true
+					if global.debug_output ~= nil and global.debug_output then
+						game.print("Train followed by player "..idx.." has left the depot")
+					end
 				elseif per_player.followed_train.schedule.current == 1 and per_player.train_left_the_depot == true then
 					global.per_player[idx].screensaver_state = looking_for_train
+					if global.debug_output ~= nil and global.debug_output then
+						game.print("Train followed by player "..idx.." has finished the delivery")
+					end
 				end
 			end
 			--Check if train changed direction
@@ -58,20 +64,20 @@ function OnTick(event)
 			--There is probably some off-by-one error here but that shouldn't matter: with high T values it's irrelevant
 			--and with low T values transition is too fast to notice one-tick difference
 			if t < T then
-				local curren_position = game.get_player(idx).position
-				local distance_x = target_position.x - curren_position.x
-				local distance_y = target_position.y - curren_position.y
+				local current_position = game.get_player(idx).position
+				local distance_x = target_position.x - current_position.x
+				local distance_y = target_position.y - current_position.y
 				speed = (math.cos(math.pi*t/T) - math.cos(math.pi*(t + 1)/T)) / (1 + math.cos(math.pi*t/T))
-				target_position.x = curren_position.x + distance_x*speed
-				target_position.y = curren_position.y + distance_y*speed
+				target_position.x = current_position.x + distance_x*speed
+				target_position.y = current_position.y + distance_y*speed
 			else
 				--Gradually transition to new "front" locomotive if needed
 				if global.per_player[idx].locomotive_transition_start_time ~= nil
 					and event.tick - global.per_player[idx].locomotive_transition_start_time < global.per_player[idx].locomotive_transition_time then
-					local curren_position = game.get_player(idx).position
+					local current_position = game.get_player(idx).position
 					local ticks_left = global.per_player[idx].locomotive_transition_time - (event.tick - global.per_player[idx].locomotive_transition_start_time)
-					target_position.x = curren_position.x + (target_position.x - curren_position.x) / ticks_left
-					target_position.y = curren_position.y + (target_position.y - curren_position.y) / ticks_left
+					target_position.x = current_position.x + (target_position.x - current_position.x) / ticks_left
+					target_position.y = current_position.y + (target_position.y - current_position.y) / ticks_left
 				end
 			end
 			game.get_player(idx).teleport(target_position)
@@ -109,7 +115,13 @@ function get_front_locomotive(idx)
 end
 
 function on_dispatcher_updated(event)
+	if global.debug_output ~= nil and global.debug_output then
+		game.print("Dispatcher updated")
+	end
 	if global.deliveries == nil then
+		if global.debug_output ~= nil and global.debug_output then
+			game.print("First time getting dispatcher update")
+		end
 		global.deliveries = event.deliveries
 		return
 	end
@@ -119,13 +131,25 @@ function on_dispatcher_updated(event)
 				--get item to be delivered
 				item, count = next(delivery.shipment, nil)
 				train = train_id
+				if global.debug_output ~= nil and global.debug_output then
+					game.print("Train is scheduled to deliver "..item)
+				end
 				--find all players that are looking for new train to follow
 				for idx, per_player in ipairs(global.per_player) do
+					if global.debug_output ~= nil and global.debug_output then
+						game.print("checking player "..idx.." screensaver status. "..per_player.screensaver_state)
+					end
 					if per_player.screensaver_state == looking_for_train then
+						if global.debug_output ~= nil and global.debug_output then
+							game.print("player "..idx.." is looking for train")
+						end
 						--check if player already watched delivery of item recently
 						if per_player.delivery_history_size == 0 or has_value(per_player.delivery_history, item) == false then
 							--If force is incorrect, ignore the train
 							if game.get_player(idx).force ~= delivery.force then
+								if global.debug_output ~= nil and global.debug_output then
+									game.print("forces of player "..idx.." and train do not match")
+								end
 								break
 							end
 							if per_player.delivery_history_size ~= 0 then
@@ -138,6 +162,17 @@ function on_dispatcher_updated(event)
 							global.per_player[idx].locomotive = get_front_locomotive(idx)
 							global.per_player[idx].train_left_the_depot = false
 							global.per_player[idx].train_follow_start_tick = game.tick
+							if global.debug_output ~= nil and global.debug_output then
+								game.print("Player "..idx.." is now following train with "..item)
+							end
+						else
+							if global.debug_output ~= nil and global.debug_output then
+								game.print("player "..idx.."has recently watched delivery of "..item..", skipping train")
+								game.print("player "..idx.." current delivery history size: "..per_player.delivery_history_size)
+								if per_player.delivery_history_size ~= 0 then
+									game.print("player "..idx.." item history:"..dump(per_player.delivery_history))
+								end
+							end
 						end
 					end
 				end
@@ -291,6 +326,9 @@ function toggle_gui(event)
 end
 
 function mod_settings_changed(event)
+	if event.setting == "ltn-scr-debug-output" then
+		global.debug_output = settings.global["ltn-scr-debug-output"].value
+	end
 	if event.player_index == nil then
 		return
 	end
