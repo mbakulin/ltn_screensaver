@@ -30,7 +30,7 @@ function dump(o)
 function OnTick(event)
 	--screensaver has never been activated, ignore event
 	if global.per_player == nil then return end
-	for idx, per_player in ipairs(global.per_player) do
+	for idx, per_player in pairs(global.per_player) do
 		--Check if any player is watching the screensaver
 		if per_player.followed_train ~= nil then
 			--Once every 2 seconds check if train either has left depot or heading to depot
@@ -135,7 +135,7 @@ function on_dispatcher_updated(event)
 					game.print("Train is scheduled to deliver "..item)
 				end
 				--find all players that are looking for new train to follow
-				for idx, per_player in ipairs(global.per_player) do
+				for idx, per_player in pairs(global.per_player) do
 					if global.debug_output ~= nil and global.debug_output then
 						game.print("checking player "..idx.." screensaver status. "..per_player.screensaver_state)
 					end
