@@ -205,9 +205,10 @@ function OnTrainInvalidated(event)
 end
 
 function OnPlayerChangedSurface(event)
-	--Screensaver has never been run before, exit
+	--Screensaver has never been run before or for this player, exit
 	if global.per_player == nil then return end
 	local idx = event.player_index
+	if global.per_player[idx] == nil then return end
 	--Screensaver is not active for player, exit
 	if global.per_player[idx].screensaver_state == nil or global.per_player[idx].screensaver_state == disabled then return end
 	--Start looking for appropriate train, reset followed_train, set current position to player's position
