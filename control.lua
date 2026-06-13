@@ -234,6 +234,18 @@ function OnPlayerChangedSurface(event)
 	storage.per_player[idx].last_position = game.get_player(idx).position
 end
 
+function search_for_new_train(event)
+	--screensaver has never been activated, ignore keypress
+	if storage.per_player == nil then return end
+	local idx = event.player_index
+	--screensaver has never been activated by this player, ignore keypress
+	if storage.per_player[idx] == nil then return end
+	--Screensaver for the current player is not active, ignore keypress
+	if storage.per_player[idx].screensaver_state ~= following_train then return end
+	storage.per_player[idx].screensaver_state = looking_for_train
+	game.get_player(idx).print({"search-new-train-message"})
+end
+
 function toggle_screensaver(event)
 	local idx = event.player_index
 	if storage.per_player == nil then storage.per_player = {} end
@@ -385,6 +397,7 @@ function subscribe_to_events(event)
 	--Subscribe to hotkeys events
 	script.on_event("pressed-screensaver-key", toggle_screensaver)
 	script.on_event("pressed-screensaver-hide-gui-key", toggle_gui)
+	script.on_event("pressed-screensaver-new-train-key", search_for_new_train)
 	--Subscribe to mod settings change event
 	script.on_event(defines.events.on_runtime_mod_setting_changed, mod_settings_changed)
 	--Subscribe to LTN schedule update events

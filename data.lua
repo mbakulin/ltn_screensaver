@@ -15,5 +15,14 @@ data:extend({
     key_sequence = "CONTROL + H",
     consuming = "none",
     enabled_while_in_cutscene = false
+  },
+  {
+    type = "custom-input",
+    name = "pressed-screensaver-new-train-key",
+    localised_name = {"search-new-train"},
+    localised_description = {"search-new-train-description"},
+    key_sequence = "CONTROL + N",
+    consuming = "none",
+    enabled_while_in_cutscene = false
   } 
 })
