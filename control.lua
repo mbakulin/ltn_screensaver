@@ -5,6 +5,14 @@ transition = "transition"
 controller_transition_time = 15
 epsilon = 0.01
 
+function enter_remote_view(player, position, surface)
+	player.set_controller{
+		type = defines.controllers.remote,
+		position = position,
+		surface = surface or player.surface
+	}
+end
+
 function has_value (tab, val)
     for index, value in pairs(tab) do
         if value == val then
@@ -80,7 +88,7 @@ function OnTick(event)
 						target_position.y = current_position.y + (target_position.y - current_position.y) / ticks_left
 					end
 				end
-				game.get_player(idx).zoom_to_world(target_position)
+				enter_remote_view(game.get_player(idx), target_position)
 				per_player.last_position = target_position
 			end
 		--end
@@ -261,6 +269,7 @@ function toggle_screensaver(event)
 		event.player_index = idx
 		toggle_gui(event)
 		storage.per_player[idx].last_position = game.get_player(idx).position
+		enter_remote_view(game.get_player(idx), storage.per_player[idx].last_position)
 		game.get_player(idx).spectator = true
 	else
 		game.get_player(idx).print({"turn-screensaver-off"})
@@ -272,7 +281,7 @@ function toggle_screensaver(event)
 			game.get_player(idx).game_view_settings = storage.per_player[idx].game_view_settings
 		end
 		game.get_player(idx).spectator = false
-		game.get_player(idx).close_map()
+		game.get_player(idx).exit_remote_view()
 	end
 end
 
