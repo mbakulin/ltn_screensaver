@@ -6,11 +6,19 @@ controller_transition_time = 15
 epsilon = 0.01
 
 function enter_remote_view(player, position, surface)
+	surface = surface or player.surface
+	local zoom = nil
+	if player.controller_type == defines.controllers.remote then
+		zoom = player.zoom
+	end
 	player.set_controller{
 		type = defines.controllers.remote,
 		position = position,
-		surface = surface or player.surface
+		surface = surface
 	}
+	if zoom ~= nil then
+		player.zoom = zoom
+	end
 end
 
 function has_value (tab, val)
