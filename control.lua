@@ -29,20 +29,20 @@ function dump(o)
 
 function OnTick(event)
 	--screensaver has never been activated, ignore event
-	if global.per_player == nil then return end
-	for idx, per_player in pairs(global.per_player) do
+	if storage.per_player == nil then return end
+	for idx, per_player in pairs(storage.per_player) do
 			--Check if any player is watching the screensaver
 			if per_player.followed_train ~= nil then
 				--Once every 1 second check if train either has left depot or heading to depot
 				if event.tick % 60 == 0 then
-					if per_player.followed_train.schedule.current ~= 1 and  global.per_player[idx].train_left_the_depot == false then
-						global.per_player[idx].train_left_the_depot = true
-						if global.debug_output ~= nil and global.debug_output then
+					if per_player.followed_train.schedule.current ~= 1 and  storage.per_player[idx].train_left_the_depot == false then
+						storage.per_player[idx].train_left_the_depot = true
+						if storage.debug_output ~= nil and storage.debug_output then
 							game.print("Train followed by player "..idx.." has left the depot")
 						end
 					elseif per_player.followed_train.schedule.current == 1 and per_player.train_left_the_depot == true then
-						global.per_player[idx].screensaver_state = looking_for_train
-						if global.debug_output ~= nil and global.debug_output then
+						storage.per_player[idx].screensaver_state = looking_for_train
+						if storage.debug_output ~= nil and storage.debug_output then
 							game.print("Train followed by player "..idx.." has finished the delivery")
 						end
 					end
@@ -50,11 +50,11 @@ function OnTick(event)
 				--Check if train changed direction
 				if per_player.locomotive ~= get_front_locomotive(idx) then
 					--Set new target locomotive and initiate gradual transition to it
-					global.per_player[idx].locomotive = get_front_locomotive(idx)
-					global.per_player[idx].locomotive_transition_start_time = event.tick
+					storage.per_player[idx].locomotive = get_front_locomotive(idx)
+					storage.per_player[idx].locomotive_transition_start_time = event.tick
 				end
 				--Set default target position to current locomotive. If any transitions are needed, this position will be changed
-				local target_position = global.per_player[idx].locomotive.position
+				local target_position = storage.per_player[idx].locomotive.position
 				local t = event.tick - per_player.train_follow_start_tick
 				local T = per_player.transition_time
 				--Transition is in progress. Some math here: we want to cover distance D in T ticks,
@@ -72,10 +72,10 @@ function OnTick(event)
 					target_position.y = current_position.y + distance_y*speed
 				else
 					--Gradually transition to new "front" locomotive if needed
-					if global.per_player[idx].locomotive_transition_start_time ~= nil
-						and event.tick - global.per_player[idx].locomotive_transition_start_time < global.per_player[idx].locomotive_transition_time then
+					if storage.per_player[idx].locomotive_transition_start_time ~= nil
+						and event.tick - storage.per_player[idx].locomotive_transition_start_time < storage.per_player[idx].locomotive_transition_time then
 						local current_position = game.get_player(idx).position
-						local ticks_left = global.per_player[idx].locomotive_transition_time - (event.tick - global.per_player[idx].locomotive_transition_start_time)
+						local ticks_left = storage.per_player[idx].locomotive_transition_time - (event.tick - storage.per_player[idx].locomotive_transition_start_time)
 						target_position.x = current_position.x + (target_position.x - current_position.x) / ticks_left
 						target_position.y = current_position.y + (target_position.y - current_position.y) / ticks_left
 					end
@@ -89,8 +89,8 @@ end
 
 --Check what is the front locomotive
 function get_front_locomotive(idx)
-	local train = global.per_player[idx].followed_train
-	local current_locomotive = global.per_player[idx].locomotive
+	local train = storage.per_player[idx].followed_train
+	local current_locomotive = storage.per_player[idx].locomotive
 	--Moving forward, use front_movers (should be always present)
 	if train.speed > epsilon then
 		return train.locomotives.front_movers[1]
@@ -114,65 +114,65 @@ function get_front_locomotive(idx)
 end
 
 function on_dispatcher_updated(event)
-	if global.debug_output ~= nil and global.debug_output then
+	if storage.debug_output ~= nil and storage.debug_output then
 		game.print("Dispatcher updated")
 	end
-	if global.deliveries == nil then
-		if global.debug_output ~= nil and global.debug_output then
+	if storage.deliveries == nil then
+		if storage.debug_output ~= nil and storage.debug_output then
 			game.print("First time getting dispatcher update")
 		end
-		global.deliveries = event.deliveries
+		storage.deliveries = event.deliveries
 		return
 	end
-	if global.per_player ~= nil then
+	if storage.per_player ~= nil then
 		for train_id, delivery in pairs(event.deliveries) do
-			if not global.deliveries[train_id] then
+			if not storage.deliveries[train_id] then
 				--get item to be delivered
 				item, count = next(delivery.shipment, nil)
 				train = train_id
-				if global.debug_output ~= nil and global.debug_output then
+				if storage.debug_output ~= nil and storage.debug_output then
 					game.print("Train is scheduled to deliver "..item)
 				end
 				--find all players that are looking for new train to follow
-				for idx, per_player in pairs(global.per_player) do
-					if global.debug_output ~= nil and global.debug_output then
+				for idx, per_player in pairs(storage.per_player) do
+					if storage.debug_output ~= nil and storage.debug_output then
 						game.print("checking player "..idx.." screensaver status. "..per_player.screensaver_state)
 					end
 					if per_player.screensaver_state == looking_for_train then
-						if global.debug_output ~= nil and global.debug_output then
+						if storage.debug_output ~= nil and storage.debug_output then
 							game.print("player "..idx.." is looking for train")
 						end
 						--check if player already watched delivery of item recently
 						if per_player.delivery_history_size == 0 or has_value(per_player.delivery_history, item) == false then
 							--If force is incorrect, ignore the train
 							if game.get_player(idx).force ~= delivery.force then
-								if global.debug_output ~= nil and global.debug_output then
+								if storage.debug_output ~= nil and storage.debug_output then
 									game.print("forces of player "..idx.." and train do not match")
 								end
 								goto check_next_player
 							end
 							--If surfaces do not match, ignore the train
 							if game.get_player(idx).surface ~= delivery.train.locomotives.front_movers[1].surface then
-								if global.debug_output ~= nil and global.debug_output then
+								if storage.debug_output ~= nil and storage.debug_output then
 									game.print("surfaces of player "..idx.." and train do not match")
 								end
 								goto check_next_player
 							end
 							if per_player.delivery_history_size ~= 0 then
-								global.per_player[idx].delivery_history[per_player.delivery_history_pointer] = item
-								global.per_player[idx].delivery_history_pointer = (per_player.delivery_history_pointer + 1) % per_player.delivery_history_size
+								storage.per_player[idx].delivery_history[per_player.delivery_history_pointer] = item
+								storage.per_player[idx].delivery_history_pointer = (per_player.delivery_history_pointer + 1) % per_player.delivery_history_size
 							end
-							global.per_player[idx].screensaver_state = following_train
-							global.per_player[idx].followed_train = delivery.train
-							global.per_player[idx].locomotive = nil
-							global.per_player[idx].locomotive = get_front_locomotive(idx)
-							global.per_player[idx].train_left_the_depot = false
-							global.per_player[idx].train_follow_start_tick = game.tick
-							if global.debug_output ~= nil and global.debug_output then
+							storage.per_player[idx].screensaver_state = following_train
+							storage.per_player[idx].followed_train = delivery.train
+							storage.per_player[idx].locomotive = nil
+							storage.per_player[idx].locomotive = get_front_locomotive(idx)
+							storage.per_player[idx].train_left_the_depot = false
+							storage.per_player[idx].train_follow_start_tick = game.tick
+							if storage.debug_output ~= nil and storage.debug_output then
 								game.print("Player "..idx.." is now following train with "..item)
 							end
 						else
-							if global.debug_output ~= nil and global.debug_output then
+							if storage.debug_output ~= nil and storage.debug_output then
 								game.print("player "..idx.."has recently watched delivery of "..item..", skipping train")
 								game.print("player "..idx.." current delivery history size: "..per_player.delivery_history_size)
 								if per_player.delivery_history_size ~= 0 then
@@ -187,13 +187,13 @@ function on_dispatcher_updated(event)
 		end
 	end
 	-- if screensaver has never been avtivated, just update deliveries table
-	global.deliveries = event.deliveries
+	storage.deliveries = event.deliveries
 end
 
 function OnTrainInvalidated(event)
 	--screensaver has never been activated, ignore event
-	if global.per_player == nil then return end
-	for index, per_player in pairs(global.per_player) do
+	if storage.per_player == nil then return end
+	for index, per_player in pairs(storage.per_player) do
 		--if something happened (killed, mined by robot or player) to the train that is being watched, disable screensaver for the player
 		if per_player.followed_train ~= nil and has_value(per_player.followed_train.carriages, event.entity) then
 			-- Fake pressing disable screensaver hotkey
@@ -206,41 +206,41 @@ end
 
 function OnPlayerChangedSurface(event)
 	--Screensaver has never been run before or for this player, exit
-	if global.per_player == nil then return end
+	if storage.per_player == nil then return end
 	local idx = event.player_index
-	if global.per_player[idx] == nil then return end
+	if storage.per_player[idx] == nil then return end
 	--Screensaver is not active for player, exit
-	if global.per_player[idx].screensaver_state == nil or global.per_player[idx].screensaver_state == disabled then return end
+	if storage.per_player[idx].screensaver_state == nil or storage.per_player[idx].screensaver_state == disabled then return end
 	--Start looking for appropriate train, reset followed_train, set current position to player's position
-	global.per_player[idx].screensaver_state = looking_for_train
-	global.per_player[idx].followed_train = nil
-	global.per_player[idx].locomotive = nil
-	global.per_player[idx].last_position = game.get_player(idx).position
+	storage.per_player[idx].screensaver_state = looking_for_train
+	storage.per_player[idx].followed_train = nil
+	storage.per_player[idx].locomotive = nil
+	storage.per_player[idx].last_position = game.get_player(idx).position
 end
 
 function toggle_screensaver(event)
 	local idx = event.player_index
-	if global.per_player == nil then global.per_player = {} end
+	if storage.per_player == nil then storage.per_player = {} end
 
-	if global.per_player[idx] == nil then
-		global.per_player[idx] = {}
+	if storage.per_player[idx] == nil then
+		storage.per_player[idx] = {}
 	end
 
-	if global.per_player[idx].screensaver_state == nil or global.per_player[idx].screensaver_state == disabled then
+	if storage.per_player[idx].screensaver_state == nil or storage.per_player[idx].screensaver_state == disabled then
 		game.get_player(idx).print({"turn-screensaver-on"})
-		global.per_player[idx].delivery_history_size = game.players[idx].mod_settings["ltn-scr-delivery-history-size"].value
-		if game.players[idx].mod_settings["ltn-scr-reset-history"].value == true or global.per_player[idx].delivery_history == nil then
-			global.per_player[idx].delivery_history = {}
-			for i=0,global.per_player[idx].delivery_history_size-1 do
-				global.per_player[idx].delivery_history[i] = nil
+		storage.per_player[idx].delivery_history_size = game.players[idx].mod_settings["ltn-scr-delivery-history-size"].value
+		if game.players[idx].mod_settings["ltn-scr-reset-history"].value == true or storage.per_player[idx].delivery_history == nil then
+			storage.per_player[idx].delivery_history = {}
+			for i=0,storage.per_player[idx].delivery_history_size-1 do
+				storage.per_player[idx].delivery_history[i] = nil
 			end 
-			global.per_player[idx].delivery_history_pointer = 0
+			storage.per_player[idx].delivery_history_pointer = 0
 		end
-		global.per_player[idx].transition_time = game.players[idx].mod_settings["ltn-scr-transition-time"].value
-		global.per_player[idx].locomotive_transition_time = game.players[idx].mod_settings["ltn-scr-locomotive-transition-time"].value
-		global.per_player[idx].screensaver_state = looking_for_train
-		global.per_player[idx].followed_train = nil
-		global.per_player[idx].locomotive = nil
+		storage.per_player[idx].transition_time = game.players[idx].mod_settings["ltn-scr-transition-time"].value
+		storage.per_player[idx].locomotive_transition_time = game.players[idx].mod_settings["ltn-scr-locomotive-transition-time"].value
+		storage.per_player[idx].screensaver_state = looking_for_train
+		storage.per_player[idx].followed_train = nil
+		storage.per_player[idx].locomotive = nil
 		--save game view settings for restoring after the screesaver ends
 		local game_view_settings =
 				{show_controller_gui = game.get_player(idx).game_view_settings.show_controller_gui,
@@ -254,22 +254,22 @@ function toggle_screensaver(event)
 				show_map_view_options = game.get_player(idx).game_view_settings.show_map_view_options,
 				show_quickbar = game.get_player(idx).game_view_settings.show_quickbar,
 				show_shortcut_bar = game.get_player(idx).game_view_settings.show_shortcut_bar}
-		global.per_player[idx].game_view_settings = game_view_settings
+		storage.per_player[idx].game_view_settings = game_view_settings
 		--Turn off the gui: set gui variable to on and send fake event
-		global.per_player[idx].gui_is_on = true
+		storage.per_player[idx].gui_is_on = true
 		local event = {}
 		event.player_index = idx
 		toggle_gui(event)
-		global.per_player[idx].last_position = game.get_player(idx).position
+		storage.per_player[idx].last_position = game.get_player(idx).position
 		game.get_player(idx).spectator = true
 	else
 		game.get_player(idx).print({"turn-screensaver-off"})
-		global.per_player[idx].screensaver_state = disabled
-		global.per_player[idx].followed_train = nil
+		storage.per_player[idx].screensaver_state = disabled
+		storage.per_player[idx].followed_train = nil
 
 		--restore game view settings
-		if global.per_player[idx].game_view_settings ~= nil then
-			game.get_player(idx).game_view_settings = global.per_player[idx].game_view_settings
+		if storage.per_player[idx].game_view_settings ~= nil then
+			game.get_player(idx).game_view_settings = storage.per_player[idx].game_view_settings
 		end
 		game.get_player(idx).spectator = false
 		game.get_player(idx).close_map()
@@ -279,21 +279,21 @@ end
 function toggle_gui(event)
 	local idx = event.player_index
 	--screensaver has never been activated, ignore keypress
-	if global.per_player == nil then
+	if storage.per_player == nil then
 		return
 	end
 
 	--screensaver has never been activated by this player, ignore keypress
-	if global.per_player[idx] == nil then
+	if storage.per_player[idx] == nil then
 		return
 	end
 
 	--Screensaver for the current player is not active, ignore keypress
-	if global.per_player[idx].screensaver_state == disabled then
+	if storage.per_player[idx].screensaver_state == disabled then
 		return
 	end
 
-	if global.per_player[idx].gui_is_on == nil or global.per_player[idx].gui_is_on == true then
+	if storage.per_player[idx].gui_is_on == nil or storage.per_player[idx].gui_is_on == true then
 		disabled_game_view_settings =
 			{show_controller_gui = false,
 			show_minimap = false,
@@ -310,16 +310,16 @@ function toggle_gui(event)
 		--clean cursor to hide the menu, if any
 		game.get_player(idx).clear_cursor()
 		game.get_player(idx).clear_selected_entity()
-		global.per_player[idx].gui_is_on = false
+		storage.per_player[idx].gui_is_on = false
 	else
-		game.get_player(idx).game_view_settings = global.per_player[idx].game_view_settings
-		global.per_player[idx].gui_is_on = true
+		game.get_player(idx).game_view_settings = storage.per_player[idx].game_view_settings
+		storage.per_player[idx].gui_is_on = true
 	end
 end
 
 function mod_settings_changed(event)
 	if event.setting == "ltn-scr-debug-output" then
-		global.debug_output = settings.global["ltn-scr-debug-output"].value
+		storage.debug_output = settings.storage["ltn-scr-debug-output"].value
 	end
 	if event.player_index == nil then
 		return
@@ -329,26 +329,26 @@ function mod_settings_changed(event)
 		return
 	end
 	--If per player is nil, it means screensaver has never been started yet, and everything will be initialized anyway on first start	
-	if global.per_player == nil then return end
+	if storage.per_player == nil then return end
 	if event.setting == "ltn-scr-transition-time" then
-		global.per_player[idx].transition_time = game.players[idx].mod_settings["ltn-scr-transition-time"].value
+		storage.per_player[idx].transition_time = game.players[idx].mod_settings["ltn-scr-transition-time"].value
 		return
 	end
 	if event.setting == "ltn-scr-locomotive-transition-time" then
-		global.per_player[idx].locomotive_transition_time = game.players[idx].mod_settings["ltn-scr-locomotive-transition-time"].value
+		storage.per_player[idx].locomotive_transition_time = game.players[idx].mod_settings["ltn-scr-locomotive-transition-time"].value
 		return
 	end
 	if event.setting == "ltn-scr-delivery-history-size" then
 		--Same: not initialized, can return.
-		if global.per_player[idx].delivery_history == nil then
+		if storage.per_player[idx].delivery_history == nil then
 			return
 		end
 		local new_delivery_history_size = game.players[idx].mod_settings["ltn-scr-delivery-history-size"].value
-		local old_delivery_history_size = global.per_player[idx].delivery_history_size
+		local old_delivery_history_size = storage.per_player[idx].delivery_history_size
 		local new_delivery_history = {}
-		local old_delivery_history = global.per_player[idx].delivery_history
+		local old_delivery_history = storage.per_player[idx].delivery_history
 		local new_pointer = 0
-		local old_pointer = global.per_player[idx].delivery_history_pointer
+		local old_pointer = storage.per_player[idx].delivery_history_pointer
 		--Can be done more efficiently, but I'm too lazy to make several checks for sizes and all. Anyway, settings change is a rare thing.
 		if new_delivery_history_size ~= 0 and old_delivery_history_size ~= 0 then
 			for i=0,old_delivery_history_size-1 do
@@ -357,9 +357,9 @@ function mod_settings_changed(event)
 				old_pointer = (old_pointer + 1) % old_delivery_history_size
 			end
 		end
-		global.per_player[idx].delivery_history = new_delivery_history
-		global.per_player[idx].delivery_history_size = new_delivery_history_size
-		global.per_player[idx].delivery_history_pointer = new_pointer
+		storage.per_player[idx].delivery_history = new_delivery_history
+		storage.per_player[idx].delivery_history_size = new_delivery_history_size
+		storage.per_player[idx].delivery_history_pointer = new_pointer
 		return
 	end
 end
