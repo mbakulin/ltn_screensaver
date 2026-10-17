@@ -1,11 +1,11 @@
 {
     "name": "LTN_screensaver",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "title": "LTN Screensaver",
     "author": "ruspartisan",
     "contact": "bakulinm@gmail.com",
     "homepage": "",
-    "factorio_version": "2.0",
-    "dependencies": ["base >= 2.0", "LogisticTrainNetwork >= 2.8.0"],
+    "factorio_version": "2.1",
+    "dependencies": ["base >= 2.1.20", "LogisticTrainNetwork >= 3.3.0"],
     "description": "This mod allows automatically track a random LTN train in map view to act as a screensaver. Press CTRL+S to start. See in-game mod settings page and control page for mor info"
 }

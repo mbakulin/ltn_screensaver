@@ -290,7 +290,6 @@ function toggle_screensaver(event)
 		toggle_gui(event)
 		storage.per_player[idx].last_position = game.get_player(idx).position
 		enter_remote_view(game.get_player(idx), storage.per_player[idx].last_position)
-		game.get_player(idx).spectator = true
 	else
 		game.get_player(idx).print({"turn-screensaver-off"})
 		storage.per_player[idx].screensaver_state = disabled
@@ -300,7 +299,6 @@ function toggle_screensaver(event)
 		if storage.per_player[idx].game_view_settings ~= nil then
 			game.get_player(idx).game_view_settings = storage.per_player[idx].game_view_settings
 		end
-		game.get_player(idx).spectator = false
 		game.get_player(idx).exit_remote_view()
 	end
 end
